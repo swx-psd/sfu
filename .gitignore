@@ -5,18 +5,29 @@ node_modules/
 
 # Expo
 .expo/
+.expo-shared/
+.expo-dev-client/
 dist/
 web-build/
 expo-env.d.ts
+.cache/
 
 # Native
 .kotlin/
+android/
+ios/
+.gradle/
+*.iml
+*.keystore
 *.orig.*
 *.jks
 *.p8
 *.p12
 *.key
 *.mobileprovision
+credentials.json
+GoogleService-Info.plist
+google-services.json
 
 # Metro
 .metro-health-check*
@@ -25,13 +36,24 @@ expo-env.d.ts
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+.eslintcache
+*.tgz
+coverage/
 
 # macOS
 .DS_Store
 *.pem
+Thumbs.db
+.idea/
+.vscode/
+.history/
 
 # local env files
 .env*.local
+.env
+.env.*
+.secret
+.tmp/
 
 # typescript
 *.tsbuildinfo
