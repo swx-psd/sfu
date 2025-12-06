@@ -83,4 +83,41 @@ export interface SeasonDetails {
 
 export interface EpisodeDetails extends Episode {}
 
+export interface ImageItem {
+  file_path: string;
+  width: number;
+  height: number;
+  vote_average?: number;
+}
+
+export interface ImagesResponse {
+  backdrops: ImageItem[];
+  posters: ImageItem[];
+}
+
+export interface WatchProvider {
+  display_priority?: number;
+  logo_path?: string | null;
+  provider_id: number;
+  provider_name: string;
+}
+
+export interface WatchProvidersResponse {
+  results: WatchProvider[];
+}
+
+export interface Video {
+  id: string;
+  key: string;
+  name: string;
+  site: string;
+  type: string;
+  official?: boolean;
+  published_at?: string;
+}
+
+export interface VideosResponse {
+  results: Video[];
+}
+
 

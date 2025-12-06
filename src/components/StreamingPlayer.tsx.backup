@@ -1,0 +1,857 @@
+import React, { useState, useEffect, useRef } from 'react';
+import {
+    View,
+    Text,
+    StyleSheet,
+    TouchableOpacity,
+    ActivityIndicator,
+    Platform,
+    FlatList,
+    Animated,
+    StatusBar,
+    TouchableWithoutFeedback,
+} from 'react-native';
+import { Video, ResizeMode } from 'expo-av';
+import { Ionicons } from '@expo/vector-icons';
+import * as ScreenOrientation from 'expo-screen-orientation';
+import { LinearGradient } from 'expo-linear-gradient';
+import { StreamingLink } from '../streaming/types';
+import { WebVideoPlayer } from './WebVideoPlayer';
+import Slider from '@react-native-community/slider';
+import { searchSubtitles, downloadSubtitle, SubtitleTrack, createTestSubtitle } from '../api/opensubtitles';
+import { parseSRT, getActiveSubtitle, SubtitleCue } from '../utils/subtitleParser';
+
+interface StreamingPlayerProps {
+    links: StreamingLink[];
+    initialLinkIndex?: number;
+    onClose: () => void;
+    movieTitle: string;
+    tmdbId?: number;
+    imdbId?: string;
+    mediaType?: 'movie' | 'tv';
+    seasonNumber?: number; // For TV shows
+    episodeNumber?: number; // For TV shows
+}
+
+export default function StreamingPlayer({
+    links,
+    initialLinkIndex = 0,
+    onClose,
+    movieTitle,
+    tmdbId,
+    imdbId,
+    mediaType = 'movie',
+    seasonNumber,
+    episodeNumber,
+}: StreamingPlayerProps) {
+    const videoRef = useRef<Video>(null);
+    const [currentLinkIndex, setCurrentLinkIndex] = useState(initialLinkIndex);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [showControls, setShowControls] = useState(true);
+    const [showProviderList, setShowProviderList] = useState(false);
+    const [showQualityList, setShowQualityList] = useState(false);
+    const [showSubtitleList, setShowSubtitleList] = useState(false);
+    const [resizeMode, setResizeMode] = useState<ResizeMode>(ResizeMode.CONTAIN);
+    const [isSeeking, setIsSeeking] = useState(false);
+
+    // Playback state
+    const [isPaused, setIsPaused] = useState(false);
+    const [position, setPosition] = useState(0);
+    const [duration, setDuration] = useState(0);
+
+    // Subtitle state
+    const [availableSubtitles, setAvailableSubtitles] = useState<SubtitleTrack[]>([]);
+    const [selectedSubtitleTitle, setSelectedSubtitleTitle] = useState<string | null>(null);
+    const [textTracks, setTextTracks] = useState<any[]>([]);
+    const [loadingSubtitles, setLoadingSubtitles] = useState(false);
+    const [subtitleCues, setSubtitleCues] = useState<SubtitleCue[]>([]);
+    const [currentSubtitle, setCurrentSubtitle] = useState<string | null>(null);
+
+    // Animation values
+    const controlsOpacity = useRef(new Animated.Value(1)).current;
+    const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Get unique providers for the list
+    const uniqueProviders = Array.from(new Set(links.map(link => link.provider)))
+        .map(providerName => {
+            return links.find(link => link.provider === providerName);
+        })
+        .filter((link): link is StreamingLink => link !== undefined);
+
+    // Get available qualities for current provider
+    const currentLink = links[currentLinkIndex];
+    const currentProviderLinks = links.filter(link => link.provider === currentLink?.provider);
+
+    useEffect(() => {
+        if (links.length === 0) {
+            setError('No streaming links available');
+            setIsLoading(false);
+        }
+    }, [links]);
+
+    const loadSubtitles = async () => {
+        if (!tmdbId && !imdbId) return;
+
+        setLoadingSubtitles(true);
+        try {
+            const subtitles = await searchSubtitles({
+                tmdb_id: tmdbId,
+                imdb_id: imdbId,
+                languages: ['eng', 'tur'], // Turkish and English
+                type: mediaType === 'tv' ? 'episode' : 'movie',
+                season_number: seasonNumber,
+                episode_number: episodeNumber,
+            });
+            setAvailableSubtitles(subtitles);
+        } catch (error) {
+            console.error('[Player] Subtitle loading error:', error);
+        } finally {
+            setLoadingSubtitles(false);
+        }
+    };
+
+    const handleSubtitleSelect = async (subtitle: SubtitleTrack) => {
+        try {
+            let downloadUrl: string | null = null;
+            let trackTitle = '';
+
+            if (subtitle.id === 'test_debug') {
+                downloadUrl = await createTestSubtitle();
+                trackTitle = 'TEST SUBTITLE';
+            } else {
+                downloadUrl = await downloadSubtitle(subtitle.download_url);
+                trackTitle = `${subtitle.language} ${subtitle.id}`;
+            }
+
+            if (downloadUrl) {
+                console.log('[Player] Subtitle downloaded:', downloadUrl);
+                console.log('[Player] Track title:', trackTitle);
+
+                // Check if track already exists
+                const existingIndex = textTracks.findIndex(t => t.title === trackTitle);
+
+                if (existingIndex === -1) {
+                    // expo-av doesn't support dynamic subtitle tracks like react-native-video
+                    // We'll use our custom subtitle overlay instead
+                    console.log('[Player] Loading subtitle for custom overlay');
+
+                    // Read subtitle content
+                    const FileSystem: any = require('expo-file-system/legacy') || require('expo-file-system');
+                    const content = await FileSystem.readAsStringAsync(downloadUrl, {
+                        encoding: 'utf8',
+                    });
+
+                    // Parse and set for custom overlay
+                    const cues = parseSRT(content);
+                    setSubtitleCues(cues);
+                    setSelectedSubtitleTitle(trackTitle);
+                    console.log('[Player] Subtitle loaded for custom overlay, cues:', cues.length);
+                }, 100);
+            } else {
+                // Track already exists, just select it
+                setSelectedSubtitleTitle(trackTitle);
+                console.log('[Player] Track already exists, selecting:', trackTitle);
+            }
+
+            setShowSubtitleList(false);
+        }
+        } catch (error) {
+        console.error('[Player] Subtitle download error:', error);
+    }
+};
+
+// Auto-load test subtitle for debugging with custom renderer
+useEffect(() => {
+    const autoLoadTestSubtitle = async () => {
+        console.log('[Player] Auto-loading test subtitle for custom overlay');
+        try {
+            const testSubUri = await createTestSubtitle();
+            if (testSubUri) {
+                console.log('[Player] Test subtitle created:', testSubUri);
+
+                // Read the file content
+                const FileSystem: any = require('expo-file-system/legacy') || require('expo-file-system');
+                const content = await FileSystem.readAsStringAsync(testSubUri, {
+                    encoding: 'utf8',
+                });
+
+                console.log('[Player] Subtitle content length:', content.length);
+                console.log('[Player] Parsing subtitle content...');
+
+                // Parse SRT content
+                const cues = parseSRT(content);
+                console.log('[Player] Parsed subtitle cues:', cues.length);
+
+                setSubtitleCues(cues);
+                setSelectedSubtitleTitle('TEST SUBTITLE');
+                console.log('[Player] Test subtitle loaded for custom overlay');
+            }
+        } catch (error) {
+            console.error('[Player] Failed to load test subtitle:', error);
+        }
+    };
+
+    autoLoadTestSubtitle();
+    loadSubtitles();
+}, [tmdbId, imdbId]);
+
+// Update current subtitle based on playback position
+useEffect(() => {
+    if (subtitleCues.length > 0 && selectedSubtitleTitle) {
+        const activeCue = getActiveSubtitle(subtitleCues, position);
+        setCurrentSubtitle(activeCue ? activeCue.text : null);
+    } else {
+        setCurrentSubtitle(null);
+    }
+}, [position, subtitleCues, selectedSubtitleTitle]);
+
+useEffect(() => {
+    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+    StatusBar.setHidden(true);
+
+    return () => {
+        ScreenOrientation.unlockAsync();
+        StatusBar.setHidden(false);
+    };
+}, []);
+
+useEffect(() => {
+    Animated.timing(controlsOpacity, {
+        toValue: showControls ? 1 : 0,
+        duration: 300,
+        useNativeDriver: true,
+    }).start();
+}, [showControls]);
+
+const autoSwitchProvider = () => {
+    if (!currentLink) return false;
+    const currentProvider = currentLink.provider;
+    const currentProviderIndex = uniqueProviders.findIndex(p => p.provider === currentProvider);
+
+    if (currentProviderIndex !== -1 && currentProviderIndex < uniqueProviders.length - 1) {
+        const nextProvider = uniqueProviders[currentProviderIndex + 1];
+        const nextLinkIndex = links.findIndex(l => l.provider === nextProvider.provider);
+
+        if (nextLinkIndex !== -1) {
+            setCurrentLinkIndex(nextLinkIndex);
+            return true;
+        }
+    }
+    return false;
+};
+
+const handleVideoError = (err: any) => {
+    console.error('[Player] Video error:', err);
+    if (autoSwitchProvider()) {
+        return;
+    }
+    setError('Video oynatılamadı. Lütfen başka bir sağlayıcı deneyin.');
+    setIsLoading(false);
+};
+
+const handleProviderSelect = (providerName: string) => {
+    const newIndex = links.findIndex(link => link.provider === providerName);
+    if (newIndex !== -1) {
+        setCurrentLinkIndex(newIndex);
+        setShowProviderList(false);
+    }
+};
+
+const handleQualitySelect = (link: StreamingLink) => {
+    const newIndex = links.indexOf(link);
+    if (newIndex !== -1) {
+        setCurrentLinkIndex(newIndex);
+        setShowQualityList(false);
+    }
+};
+
+const toggleControls = () => {
+    if (showControls) {
+        setShowControls(false);
+        if (controlsTimeoutRef.current) {
+            clearTimeout(controlsTimeoutRef.current);
+        }
+    } else {
+        setShowControls(true);
+        resetControlsTimeout();
+    }
+};
+
+const resetControlsTimeout = () => {
+    if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+    }
+    controlsTimeoutRef.current = setTimeout(() => {
+        setShowControls(false);
+    }, 4000);
+};
+
+const handlePlayPause = () => {
+    setIsPaused(!isPaused);
+    resetControlsTimeout();
+};
+
+const handleSliderChange = (value: number) => {
+    setPosition(value);
+};
+
+const handleSliderComplete = (value: number) => {
+    videoRef.current?.seek(value);
+    setIsSeeking(false);
+    resetControlsTimeout();
+};
+
+const handleRewind = () => {
+    const newPosition = Math.max(0, position - 10);
+    videoRef.current?.seek(newPosition);
+    resetControlsTimeout();
+};
+
+const handleFastForward = () => {
+    const newPosition = Math.min(duration, position + 10);
+    videoRef.current?.seek(newPosition);
+    resetControlsTimeout();
+};
+
+const toggleResizeMode = () => {
+    setResizeMode(prev => prev === 'contain' ? 'cover' : 'contain');
+};
+
+const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+};
+
+if (Platform.OS === 'web') {
+    return (
+        <WebVideoPlayer
+            links={links}
+            initialLinkIndex={initialLinkIndex}
+            onClose={onClose}
+            movieTitle={movieTitle}
+        />
+    );
+}
+
+if (!currentLink) {
+    return (
+        <View style={styles.container}>
+            <Text style={styles.errorText}>No video source available</Text>
+        </View>
+    );
+}
+
+return (
+    <View style={styles.container}>
+        <View style={styles.videoContainer}>
+            <Video
+                ref={videoRef}
+                source={{
+                    uri: currentLink.url,
+                    headers: currentLink.headers,
+                }}
+                style={styles.video}
+                resizeMode={resizeMode}
+                paused={isPaused}
+                repeat={false}
+                playInBackground={false}
+                playWhenInactive={false}
+                ignoreSilentSwitch="ignore"
+                controls={false}
+                fullscreen={false}
+                onLoad={(data) => {
+                    setDuration(data.duration);
+                    setIsLoading(false);
+                    console.log('[Player] Video loaded, text tracks available:', data.textTracks);
+                    if (position > 0) {
+                        videoRef.current?.seek(position);
+                    }
+                }}
+                onProgress={(data: any) => {
+                    if (!isSeeking) {
+                        setPosition(data.currentTime);
+                    }
+                }}
+                onError={handleVideoError}
+                onTextTracks={(data: any) => {
+                    console.log('[Player] Text tracks event:', data);
+                }}
+                textTracks={textTracks}
+                selectedTextTrack={
+                    selectedSubtitleTitle && textTracks.length > 0
+                        ? { type: SelectedTrackType.INDEX, value: 0 }
+                        : { type: SelectedTrackType.DISABLED }
+                }
+                subtitleStyle={{
+                    fontSize: 18,
+                    paddingBottom: 50,
+                    opacity: 1,
+                }}
+            />
+
+            <TouchableWithoutFeedback onPress={toggleControls}>
+                <View style={StyleSheet.absoluteFill} />
+            </TouchableWithoutFeedback>
+
+            {isLoading && (
+                <View style={styles.loadingContainer} pointerEvents="none">
+                    <ActivityIndicator size="large" color="#ff6b6b" />
+                </View>
+            )}
+
+            {error && (
+                <View style={styles.errorContainer}>
+                    <Ionicons name="alert-circle" size={48} color="#ff6b6b" />
+                    <Text style={styles.errorText}>{error}</Text>
+                    <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+                        <Text style={styles.closeButtonText}>Kapat</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+
+            {/* Custom Subtitle Overlay */}
+            {currentSubtitle && (
+                <View style={styles.subtitleOverlay} pointerEvents="none">
+                    <Text style={styles.subtitleText}>{currentSubtitle}</Text>
+                </View>
+            )}
+        </View>
+
+        {/* Controls Overlay */}
+        <Animated.View style={[styles.controls, { opacity: controlsOpacity }]} pointerEvents={showControls ? 'auto' : 'none'}>
+            {/* Top Bar */}
+            <LinearGradient
+                colors={['rgba(0,0,0,0.8)', 'transparent']}
+                style={styles.topBar}
+            >
+                <TouchableOpacity onPress={onClose} style={styles.iconButton}>
+                    <Ionicons name="arrow-back" size={28} color="#fff" />
+                </TouchableOpacity>
+                <Text style={styles.title} numberOfLines={1}>
+                    {movieTitle}
+                </Text>
+                <View style={styles.topRightControls}>
+                    {/* Subtitle Button */}
+                    <TouchableOpacity
+                        onPress={() => {
+                            setShowSubtitleList(true);
+                            resetControlsTimeout();
+                        }}
+                        style={styles.iconButton}
+                    >
+                        <Ionicons name="text" size={24} color="#fff" />
+                    </TouchableOpacity>
+
+                    {/* Quality Button */}
+                    <TouchableOpacity
+                        onPress={() => {
+                            setShowQualityList(true);
+                            resetControlsTimeout();
+                        }}
+                        style={styles.iconButton}
+                    >
+                        <Ionicons name="settings-outline" size={24} color="#fff" />
+                    </TouchableOpacity>
+
+                    {/* Provider Button */}
+                    <TouchableOpacity
+                        onPress={() => {
+                            setShowProviderList(true);
+                            resetControlsTimeout();
+                        }}
+                        style={styles.iconButton}
+                    >
+                        <Ionicons name="server-outline" size={24} color="#fff" />
+                    </TouchableOpacity>
+                </View>
+            </LinearGradient>
+
+            {/* Center Play/Pause */}
+            <View style={styles.centerControls}>
+                <TouchableOpacity onPress={handleRewind} style={styles.skipButton}>
+                    <Ionicons name="play-back" size={36} color="#fff" />
+                    <Text style={styles.skipText}>10</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={handlePlayPause} style={styles.playButton}>
+                    <Ionicons name={isPaused ? "play" : "pause"} size={48} color="#fff" />
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={handleFastForward} style={styles.skipButton}>
+                    <Ionicons name="play-forward" size={36} color="#fff" />
+                    <Text style={styles.skipText}>10</Text>
+                </TouchableOpacity>
+            </View>
+
+            {/* Bottom Bar */}
+            <LinearGradient
+                colors={['transparent', 'rgba(0,0,0,0.8)']}
+                style={styles.bottomBar}
+            >
+                <View style={styles.timeContainer}>
+                    <Text style={styles.timeText}>{formatTime(position)}</Text>
+                    <Slider
+                        style={styles.slider}
+                        minimumValue={0}
+                        maximumValue={duration}
+                        value={position}
+                        minimumTrackTintColor="#ff6b6b"
+                        maximumTrackTintColor="rgba(255,255,255,0.3)"
+                        thumbTintColor="#ff6b6b"
+                        onValueChange={handleSliderChange}
+                        onSlidingComplete={handleSliderComplete}
+                        onSlidingStart={() => {
+                            setIsSeeking(true);
+                            if (controlsTimeoutRef.current) {
+                                clearTimeout(controlsTimeoutRef.current);
+                            }
+                        }}
+                    />
+                    <Text style={styles.timeText}>{formatTime(duration)}</Text>
+                </View>
+
+                <TouchableOpacity onPress={toggleResizeMode} style={styles.resizeButton}>
+                    <Ionicons
+                        name={resizeMode === 'contain' ? "scan-outline" : "contract-outline"}
+                        size={24}
+                        color="#fff"
+                    />
+                </TouchableOpacity>
+            </LinearGradient>
+        </Animated.View>
+
+        {/* Provider List Modal */}
+        {showProviderList && (
+            <View style={[StyleSheet.absoluteFill, styles.modalOverlay]}>
+                <TouchableWithoutFeedback onPress={() => setShowProviderList(false)}>
+                    <View style={styles.modalBackground} />
+                </TouchableWithoutFeedback>
+                <View style={styles.modalContent}>
+                    <Text style={styles.modalTitle}>Kaynak Seç</Text>
+                    <FlatList
+                        data={uniqueProviders}
+                        keyExtractor={(item) => item.provider}
+                        renderItem={({ item }) => (
+                            <TouchableOpacity
+                                style={[
+                                    styles.modalItem,
+                                    currentLink?.provider === item.provider && styles.modalItemActive
+                                ]}
+                                onPress={() => handleProviderSelect(item.provider)}
+                            >
+                                <Text style={[
+                                    styles.modalItemText,
+                                    currentLink?.provider === item.provider && styles.modalItemTextActive
+                                ]}>
+                                    {item.provider.charAt(0).toUpperCase() + item.provider.slice(1)}
+                                </Text>
+                                {currentLink?.provider === item.provider && (
+                                    <Ionicons name="checkmark" size={20} color="#ff6b6b" />
+                                )}
+                            </TouchableOpacity>
+                        )}
+                    />
+                </View>
+            </View>
+        )}
+
+        {/* Quality List Modal */}
+        {showQualityList && (
+            <View style={[StyleSheet.absoluteFill, styles.modalOverlay]}>
+                <TouchableWithoutFeedback onPress={() => setShowQualityList(false)}>
+                    <View style={styles.modalBackground} />
+                </TouchableWithoutFeedback>
+                <View style={styles.modalContent}>
+                    <Text style={styles.modalTitle}>Kalite Seç</Text>
+                    <FlatList
+                        data={currentProviderLinks}
+                        keyExtractor={(item, index) => `${item.provider}-${index}`}
+                        renderItem={({ item }) => (
+                            <TouchableOpacity
+                                style={[
+                                    styles.modalItem,
+                                    currentLink === item && styles.modalItemActive
+                                ]}
+                                onPress={() => handleQualitySelect(item)}
+                            >
+                                <Text style={[
+                                    styles.modalItemText,
+                                    currentLink === item && styles.modalItemTextActive
+                                ]}>
+                                    {item.quality}
+                                </Text>
+                                {currentLink === item && (
+                                    <Ionicons name="checkmark" size={20} color="#ff6b6b" />
+                                )}
+                            </TouchableOpacity>
+                        )}
+                    />
+                </View>
+            </View>
+        )}
+
+        {/* Subtitle List Modal */}
+        {showSubtitleList && (
+            <View style={[StyleSheet.absoluteFill, styles.modalOverlay]}>
+                <TouchableWithoutFeedback onPress={() => setShowSubtitleList(false)}>
+                    <View style={styles.modalBackground} />
+                </TouchableWithoutFeedback>
+                <View style={styles.modalContent}>
+                    <Text style={styles.modalTitle}>Altyazı Seç</Text>
+                    {loadingSubtitles ? (
+                        <ActivityIndicator size="small" color="#ff6b6b" />
+                    ) : (
+                        <FlatList
+                            data={[
+                                { id: 'none', language: 'Yok', languageCode: 'none', file_name: 'None', download_url: '' },
+                                { id: 'test_debug', language: 'TEST ALTYAZISI (DEBUG)', languageCode: 'eng', file_name: 'Test Subtitle', download_url: '' },
+                                ...availableSubtitles
+                            ]}
+                            keyExtractor={(item) => item.id}
+                            renderItem={({ item }) => {
+                                let isSelected = false;
+                                if (item.id === 'none') {
+                                    isSelected = selectedSubtitleTitle === null;
+                                } else if (item.id === 'test_debug') {
+                                    isSelected = selectedSubtitleTitle === 'TEST SUBTITLE';
+                                } else {
+                                    isSelected = selectedSubtitleTitle === `${item.language} ${item.id}`;
+                                }
+
+                                return (
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.modalItem,
+                                            isSelected && styles.modalItemActive
+                                        ]}
+                                        onPress={() => {
+                                            if (item.id === 'none') {
+                                                setSelectedSubtitleTitle(null);
+                                                setShowSubtitleList(false);
+                                            } else {
+                                                handleSubtitleSelect(item as SubtitleTrack);
+                                            }
+                                        }}
+                                    >
+                                        <View>
+                                            <Text style={[
+                                                styles.modalItemText,
+                                                isSelected && styles.modalItemTextActive
+                                            ]}>
+                                                {item.language}
+                                            </Text>
+                                            {item.id !== 'none' && (
+                                                <Text style={styles.modalItemSubText} numberOfLines={1}>
+                                                    {item.file_name}
+                                                </Text>
+                                            )}
+                                        </View>
+                                        {isSelected && (
+                                            <Ionicons name="checkmark" size={20} color="#ff6b6b" />
+                                        )}
+                                    </TouchableOpacity>
+                                );
+                            }}
+                        />
+                    )}
+                </View>
+            </View>
+        )}
+    </View>
+);
+}
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#000',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    videoContainer: {
+        width: '100%',
+        height: '100%',
+    },
+    video: {
+        flex: 1,
+    },
+    loadingContainer: {
+        ...StyleSheet.absoluteFillObject,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    // Controls
+    controls: {
+        ...StyleSheet.absoluteFillObject,
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+    },
+    topBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingTop: 10,
+        paddingBottom: 20,
+        paddingHorizontal: 10,
+    },
+    title: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: 'bold',
+        flex: 1,
+        marginLeft: 15,
+    },
+    iconButton: {
+        padding: 5,
+        marginLeft: 10,
+    },
+    topRightControls: {
+        flexDirection: 'row',
+    },
+    centerControls: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 40,
+    },
+    playButton: {
+        padding: 10,
+    },
+    skipButton: {
+        alignItems: 'center',
+        padding: 10,
+    },
+    skipText: {
+        color: '#fff',
+        fontSize: 12,
+        fontWeight: 'bold',
+        marginTop: -5,
+    },
+    bottomBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingTop: 20,
+        paddingBottom: 10,
+        paddingHorizontal: 10,
+    },
+    timeContainer: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    timeText: {
+        color: '#fff',
+        fontSize: 12,
+        width: 45,
+        textAlign: 'center',
+    },
+    slider: {
+        flex: 1,
+        marginHorizontal: 10,
+        height: 40,
+    },
+    resizeButton: {
+        padding: 5,
+        marginLeft: 10,
+    },
+    // Modals
+    modalOverlay: {
+        zIndex: 100,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalBackground: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+    },
+    modalContent: {
+        width: '60%',
+        maxHeight: '80%',
+        backgroundColor: '#1a1a1a',
+        borderRadius: 12,
+        padding: 20,
+        borderWidth: 1,
+        borderColor: '#333',
+    },
+    modalTitle: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 15,
+        textAlign: 'center',
+    },
+    modalItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 15,
+        borderBottomWidth: 1,
+        borderBottomColor: '#333',
+    },
+    modalItemActive: {
+        backgroundColor: 'rgba(255, 107, 107, 0.1)',
+    },
+    modalItemText: {
+        color: '#fff',
+        fontSize: 16,
+    },
+    modalItemTextActive: {
+        color: '#ff6b6b',
+        fontWeight: 'bold',
+    },
+    modalItemSubText: {
+        color: '#999',
+        fontSize: 12,
+        marginTop: 2,
+    },
+    errorContainer: {
+        ...StyleSheet.absoluteFillObject,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#000',
+        zIndex: 20,
+    },
+    errorText: {
+        color: '#fff',
+        marginTop: 10,
+        marginBottom: 20,
+        textAlign: 'center',
+    },
+    closeButton: {
+        backgroundColor: '#333',
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 8,
+    },
+    closeButtonText: {
+        color: '#fff',
+        fontWeight: 'bold',
+    },
+    // Custom Subtitle Overlay
+    subtitleOverlay: {
+        position: 'absolute',
+        bottom: 80,
+        left: 0,
+        right: 0,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 20,
+    },
+    subtitleText: {
+        color: '#fff',
+        fontSize: 20,
+        fontWeight: 'bold',
+        textAlign: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.75)',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 4,
+        textShadowColor: '#000',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
+        lineHeight: 28,
+    },
+});

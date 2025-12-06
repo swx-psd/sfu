@@ -1,0 +1,201 @@
+import { StyleSheet } from 'react-native';
+
+export const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#000',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    videoContainer: {
+        width: '100%',
+        height: '100%',
+    },
+    video: {
+        flex: 1,
+    },
+    subtitleContainer: {
+        position: 'absolute',
+        left: 20,
+        right: 20,
+        alignItems: 'center',
+        zIndex: 5,
+    },
+    subtitleText: {
+        color: '#fff',
+        fontWeight: 'bold',
+        textAlign: 'center',
+        textShadowColor: 'rgba(0, 0, 0, 0.75)',
+        textShadowOffset: { width: 2, height: 2 },
+        textShadowRadius: 4,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        borderRadius: 4,
+    },
+    loadingContainer: {
+        ...StyleSheet.absoluteFillObject,
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 10,
+    },
+    loadingBox: {
+        backgroundColor: 'rgba(26, 26, 26, 0.9)',
+        padding: 24,
+        borderRadius: 16,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#333',
+    },
+    loadingText: {
+        color: '#fff',
+        marginTop: 12,
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    controls: {
+        ...StyleSheet.absoluteFillObject,
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+    },
+    topBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingTop: 10,
+        paddingBottom: 20,
+        paddingHorizontal: 10,
+    },
+    title: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: 'bold',
+        flex: 1,
+        marginLeft: 15,
+    },
+    iconButton: {
+        padding: 5,
+        marginLeft: 10,
+    },
+    topRightControls: {
+        flexDirection: 'row',
+    },
+    centerControls: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 40,
+    },
+    playButton: {
+        padding: 10,
+    },
+    skipButton: {
+        alignItems: 'center',
+        padding: 10,
+    },
+    skipTextOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    skipText: {
+        color: '#fff',
+        fontSize: 12,
+        fontWeight: 'bold',
+    },
+    bottomBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingTop: 20,
+        paddingBottom: 10,
+        paddingHorizontal: 10,
+    },
+    timeContainer: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    timeText: {
+        color: '#fff',
+        fontSize: 12,
+        width: 45,
+        textAlign: 'center',
+    },
+    slider: {
+        flex: 1,
+        marginHorizontal: 10,
+        height: 40,
+    },
+    modalOverlay: {
+        zIndex: 100,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalBackground: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+    },
+    modalContent: {
+        // dynamic width handling in component
+        maxHeight: '80%',
+        backgroundColor: '#1a1a1a',
+        borderRadius: 12,
+        padding: 20,
+        borderWidth: 1,
+        borderColor: '#333',
+    },
+    modalTitle: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 15,
+        textAlign: 'center',
+    },
+    modalItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 15,
+        borderBottomWidth: 1,
+        borderBottomColor: '#333',
+    },
+    modalItemActive: {
+        backgroundColor: 'rgba(255, 107, 107, 0.1)',
+    },
+    modalItemText: {
+        color: '#fff',
+        fontSize: 16,
+    },
+    modalItemTextActive: {
+        color: '#ff6b6b',
+        fontWeight: 'bold',
+    },
+    errorContainer: {
+        ...StyleSheet.absoluteFillObject,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#000',
+        zIndex: 20,
+    },
+    errorText: {
+        color: '#fff',
+        marginTop: 10,
+        marginBottom: 20,
+        textAlign: 'center',
+    },
+    closeButton: {
+        backgroundColor: '#333',
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 8,
+    },
+    closeButtonText: {
+        color: '#fff',
+        fontWeight: 'bold',
+    },
+});

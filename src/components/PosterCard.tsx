@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Image } from "expo-image";
-import Constants from "expo-constants";
+import { buildTmdbImageUrl } from "../utils";
 
 type Props = {
   title: string;
@@ -9,8 +9,7 @@ type Props = {
 };
 
 export default function PosterCard({ title, posterPath }: Props) {
-  const imageBase = (Constants.expoConfig?.extra as any)?.tmdb?.imageBase || "https://image.tmdb.org/t/p/";
-  const uri = posterPath ? `${imageBase}w300${posterPath}` : undefined;
+  const uri = buildTmdbImageUrl(posterPath, "w300");
 
   return (
     <View style={styles.container}>
@@ -25,10 +24,10 @@ export default function PosterCard({ title, posterPath }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { width: 120 },
-  image: { width: 120, height: 180, borderRadius: 8, backgroundColor: "#222" },
+  container: { width: '100%' },
+  image: { width: '100%', aspectRatio: 2 / 3, borderRadius: 8, backgroundColor: "#222" },
   placeholder: { alignItems: "center", justifyContent: "center" },
-  title: { marginTop: 6, fontSize: 12 },
+  title: { marginTop: 6, fontSize: 12, color: '#ffffff' },
 });
 
 
