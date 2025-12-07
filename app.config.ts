@@ -2,6 +2,13 @@ export default {
   name: "SecFlix",
   slug: "secflix",
   scheme: "secflix",
+  icon: "./assets/icon.png",
+  userInterfaceStyle: "dark",
+  splash: {
+    image: "./assets/splash-icon.png",
+    resizeMode: "contain",
+    backgroundColor: "#000000"
+  },
   platforms: ["ios", "android", "web"], // Web etkin
   ios: {
     bundleIdentifier: "com.secflix.app",
@@ -11,9 +18,14 @@ export default {
     },
   },
   android: {
+    adaptiveIcon: {
+      foregroundImage: "./assets/adaptive-icon.png",
+      backgroundColor: "#000000"
+    },
     package: "com.secflix.app",
   },
   web: {
+    favicon: "./assets/favicon.png",
     bundler: "metro",
     output: "single"
   },
