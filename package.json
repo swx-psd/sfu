@@ -8,7 +8,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "build:web": "expo export:web",
-    "export:update": "expo export --public-url https://swx-psd.github.io/sflx",
+    "export:update": "expo export",
     "serve:web": "npx serve dist"
   },
   "dependencies": {

@@ -43,7 +43,7 @@ export default {
     },
   },
   updates: {
-    url: "https://swx-psd.github.io/sflx", // GitHub Pages URL
+    url: "https://swx-psd.github.io/sfu", // GitHub Pages URL (Public Repo)
     checkAutomatically: "ON_LOAD",
     fallbackToCacheTimeout: 0
   },
