@@ -121,19 +121,7 @@ export default function SettingsScreen() {
                 </TouchableOpacity>
             </View>
 
-            {/* Test (OTA Verification) */}
-            <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Geliştirici</Text>
-                <TouchableOpacity
-                    style={styles.settingItem}
-                    onPress={() => alert('Test v1: Güncelleme Başarılı!')}
-                >
-                    <View style={styles.settingLeft}>
-                        <Ionicons name="construct" size={24} color="#ff6b6b" />
-                        <Text style={styles.settingText}>Test Butonu</Text>
-                    </View>
-                </TouchableOpacity>
-            </View>
+
 
             {/* Sürüm Bilgisi */}
             <View style={styles.versionContainer}>
