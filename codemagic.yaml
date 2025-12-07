@@ -1,0 +1,36 @@
+workflows:
+  ios-unsigned:
+    name: iOS Unsigned IPA
+    max_build_duration: 60
+    environment:
+      node: latest
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Install dependencies
+        script: npm install
+      - name: Expo Prebuild
+        script: npx expo prebuild
+      - name: Build Unsigned IPA
+        script: |
+          cd ios
+          pod install
+          
+          # Build Archive with Signing Disabled
+          xcodebuild -workspace SecFlix.xcworkspace \
+            -scheme SecFlix \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath $PWD/build/SecFlix.xcarchive \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            archive
+
+          # Manually Package IPA (Standard export requires signing)
+          mkdir -p $PWD/build/Payload
+          cp -r $PWD/build/SecFlix.xcarchive/Products/Applications/SecFlix.app $PWD/build/Payload/
+          cd $PWD/build
+          zip -r SecFlix_Unsigned.ipa Payload
+    artifacts:
+      - ios/build/*.ipa
