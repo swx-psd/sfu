@@ -19,10 +19,10 @@ const Tabs = createBottomTabNavigator();
 
 function TabsNavigator() {
   return (
-    <Tabs.Navigator 
-      detachInactiveScreens={false} 
-      screenOptions={{ 
-        headerShown: false, 
+    <Tabs.Navigator
+      detachInactiveScreens={false}
+      screenOptions={{
+        headerShown: false,
         freezeOnBlur: false,
         tabBarStyle: {
           backgroundColor: '#000000',
@@ -37,9 +37,9 @@ function TabsNavigator() {
         },
       }}
     >
-      <Tabs.Screen 
-        name="Home" 
-        component={HomeScreen} 
+      <Tabs.Screen
+        name="Home"
+        component={HomeScreen}
         options={{
           tabBarLabel: 'Ana Sayfa',
           tabBarIcon: ({ color, size }) => (
@@ -47,9 +47,9 @@ function TabsNavigator() {
           ),
         }}
       />
-      <Tabs.Screen 
-        name="Search" 
-        component={SearchScreen} 
+      <Tabs.Screen
+        name="Search"
+        component={SearchScreen}
         options={{
           tabBarLabel: 'Arama',
           tabBarIcon: ({ color, size }) => (
@@ -57,9 +57,9 @@ function TabsNavigator() {
           ),
         }}
       />
-      <Tabs.Screen 
-        name="Settings" 
-        component={SettingsScreen} 
+      <Tabs.Screen
+        name="Settings"
+        component={SettingsScreen}
         options={{
           tabBarLabel: 'Ayarlar',
           tabBarIcon: ({ color, size }) => (
@@ -82,12 +82,13 @@ export default function RootNavigation() {
         <Stack.Screen name="Episode" component={EpisodeScreen} />
         <Stack.Screen name="ProviderContent" component={ProviderContentScreen} />
         <Stack.Screen name="TrendingList" component={TrendingListScreen} />
-        <Stack.Screen 
-          name="VideoPlayer" 
+        <Stack.Screen
+          name="VideoPlayer"
           component={VideoPlayerScreen}
           options={{
             presentation: 'fullScreenModal',
-            gestureEnabled: false
+            gestureEnabled: false,
+            autoHideHomeIndicator: true
           }}
         />
       </Stack.Navigator>
