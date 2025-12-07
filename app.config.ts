@@ -42,6 +42,14 @@ export default {
       projectId: "631ca3b9-69c1-4249-b5ca-c43e000c60b2",
     },
   },
+  updates: {
+    url: "https://swx-psd.github.io/sflx", // GitHub Pages URL
+    checkAutomatically: "ON_LOAD",
+    fallbackToCacheTimeout: 0
+  },
+  runtimeVersion: {
+    policy: "appVersion"
+  }
 } as const;
 
 
