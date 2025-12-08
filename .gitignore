@@ -57,3 +57,7 @@ Thumbs.db
 
 # typescript
 *.tsbuildinfo
+
+# OTA bundles (separate repo)
+bundles/
+
