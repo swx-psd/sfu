@@ -1,18 +1,18 @@
 {
-  "version": "1.0.3",
-  "buildTime": "2025-12-09T20:52:16.383Z",
+  "version": "1.0.4",
+  "buildTime": "2025-12-09T21:14:41.512Z",
   "bundles": {
     "android": {
-      "url": "https://github.com/swx-psd/sfu/releases/download/v1.0.3/android.bundle",
-      "size": 4535447,
-      "checksum": "a8443ad277ce4094cc2809c3a937aa5b8b4484f81d9ad629c5db99ea61fe79d5"
+      "url": "https://github.com/swx-psd/sfu/releases/download/v1.0.4/android.bundle",
+      "size": 4535446,
+      "checksum": "602cb58038876dc88ebcba426c84b1257c63964ef0a988d728ecb2d4ef4336b7"
     },
     "ios": {
-      "url": "https://github.com/swx-psd/sfu/releases/download/v1.0.3/ios.bundle",
-      "size": 4523857,
-      "checksum": "c5350a2023309fba38571d624aa10911b2de9fd60065d2c6b1ee3936e59e1af7"
+      "url": "https://github.com/swx-psd/sfu/releases/download/v1.0.4/ios.bundle",
+      "size": 4523858,
+      "checksum": "00211cf0f18bc4d1162558f0e32fe6dcb4001d7490619dd05a5f14a0bd0b42c8"
     }
   },
   "minimumAppVersion": "1.0.0",
-  "releaseNotes": "Release v1.0.3"
+  "releaseNotes": "Release v1.0.4"
 }
